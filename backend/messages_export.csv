@@ -1,0 +1,7 @@
+id,conversation_id,role,content,created_at
+1,1,user,"Hello! This is a test message.","2026-04-23 18:38:26.579756"
+2,1,assistant,"Hi! I'm Mirabel. Nice to meet you!","2026-04-23 18:38:26.594817"
+3,2,user,"Hello AI!","2026-04-23 18:39:51.122837"
+4,2,assistant,"Hello Human!","2026-04-23 18:39:51.138284"
+5,3,user,Hello!,"2026-04-23 19:23:35"
+6,3,assistant,"Hi there!","2026-04-23 19:23:35"

@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mirabel AI</string>
+    <string name="title_activity_main">Mirabel AI</string>
+    <string name="package_name">com.rishav.mirabelai</string>
+    <string name="custom_url_scheme">com.rishav.mirabelai</string>
+</resources>

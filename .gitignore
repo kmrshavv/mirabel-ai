@@ -8,3 +8,8 @@ dist/
 *.log
 credentials.json
 conversations_local.pkl
+backend/credentials.json
+backend/oauth_credentials.json
+backend/token.json
+backend/conversations_local.pkl
+*.pkl
