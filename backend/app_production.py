@@ -1,20 +1,14 @@
-# app_production.py - Deployable backend with Google Drive storage
+# app_production.py - For deployment on Render
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import httpx
 import os
 import json
-import pickle
-from datetime import datetime
-from google.oauth2 import service_account
-from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload, MediaIoBaseDownload
-import io
 
 app = FastAPI(title="Mirabel AI - Production")
 
-# CORS for Vercel frontend
+# CORS for all origins (required for Vercel frontend)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -23,162 +17,37 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Google Drive setup
-DRIVE_CREDENTIALS = os.environ.get("GOOGLE_CREDENTIALS_JSON", "credentials.json")
-FOLDER_NAME = "Mirabel_AI_Storage"
+# Request model
+class ChatRequest(BaseModel):
+    message: str
+    model: str = "emotional"
+    use_emotion_prompt: bool = True
 
-def get_drive_service():
-    """Connect to Google Drive"""
-    try:
-        if os.path.exists(DRIVE_CREDENTIALS):
-            creds = service_account.Credentials.from_service_account_file(
-                DRIVE_CREDENTIALS,
-                scopes=['https://www.googleapis.com/auth/drive.file']
-            )
-            return build('drive', 'v3', credentials=creds)
-    except:
-        pass
-    return None
-
-def get_or_create_folder(service):
-    """Get or create the storage folder"""
-    try:
-        results = service.files().list(
-            q=f"name='{FOLDER_NAME}' and mimeType='application/vnd.google-apps.folder'",
-            spaces='drive',
-            fields='files(id, name)'
-        ).execute()
-        folders = results.get('files', [])
-        if folders:
-            return folders[0]['id']
-        file_metadata = {
-            'name': FOLDER_NAME,
-            'mimeType': 'application/vnd.google-apps.folder'
-        }
-        folder = service.files().create(body=file_metadata, fields='id').execute()
-        return folder.get('id')
-    except:
-        return None
-
-# Chat history storage
-class ChatStorage:
-    def __init__(self):
-        self.service = get_drive_service()
-        self.folder_id = get_or_create_folder(self.service) if self.service else None
-    
-    def save_conversation(self, user_msg, ai_msg, model_used):
-        """Save conversation to Google Drive"""
-        if not self.service or not self.folder_id:
-            return False
-        try:
-            # Load existing
-            conversations = self.load_conversations()
-            conversations.append({
-                'timestamp': datetime.now().isoformat(),
-                'user': user_msg,
-                'ai': ai_msg,
-                'model': model_used
-            })
-            # Save to Drive
-            data = pickle.dumps(conversations)
-            file_name = f"chat_history_{datetime.now().strftime('%Y%m%d')}.pkl"
-            results = self.service.files().list(
-                q=f"name='{file_name}' and '{self.folder_id}' in parents",
-                fields='files(id, name)'
-            ).execute()
-            files = results.get('files', [])
-            media = MediaIoBaseUpload(io.BytesIO(data), mimetype='application/octet-stream')
-            if files:
-                self.service.files().update(fileId=files[0]['id'], media_body=media).execute()
-            else:
-                file_metadata = {'name': file_name, 'parents': [self.folder_id]}
-                self.service.files().create(body=file_metadata, media_body=media).execute()
-            return True
-        except Exception as e:
-            print(f"Save error: {e}")
-            return False
-    
-    def load_conversations(self):
-        """Load conversations from Google Drive"""
-        if not self.service or not self.folder_id:
-            return []
-        try:
-            results = self.service.files().list(
-                q=f"'{self.folder_id}' in parents and name contains 'chat_history'",
-                orderBy='createdTime desc',
-                pageSize=1,
-                fields='files(id, name)'
-            ).execute()
-            files = results.get('files', [])
-            if files:
-                request = self.service.files().get_media(fileId=files[0]['id'])
-                fh = io.BytesIO()
-                downloader = MediaIoBaseDownload(fh, request)
-                done = False
-                while not done:
-                    status, done = downloader.next_chunk()
-                fh.seek(0)
-                return pickle.load(fh)
-        except:
-            pass
-        return []
-
-storage = ChatStorage()
-
-# Hugging Face configuration (FREE AI models)
+# Get Hugging Face API token from environment
 HF_API_TOKEN = os.environ.get("HF_API_TOKEN", "")
+
+# Free models available on Hugging Face [citation:5]
 FREE_MODELS = {
-    "chat": "microsoft/DialoGPT-medium",
-    "code": "bigcode/starcoderbase-1b",
-    "research": "google/flan-t5-large"
+    "emotional": "microsoft/DialoGPT-medium",
+    "coder": "bigcode/starcoderbase-1b", 
+    "researcher": "google/flan-t5-large",
+    "document": "facebook/bart-large-mnli"
 }
 
-# Emotional prompt
-EMOTION_PROMPT = """You are Mirabel, an empathetic AI assistant. 
-Be warm, caring, and thoughtful. If unsure, say so honestly. 
-Use 'we' and 'let's' to collaborate. Be positive and encouraging."""
+# Your emotional prompt
+EMOTION_PROMPT = """You are Mirabel, a thoughtful, empathetic, and brilliant AI assistant. 
+My creator and father is Rishav Kumar. He completed his B.tech in Automation and Robotics in 2025.
 
-@app.get("/")
-async def root():
-    return {"name": "Mirabel AI", "status": "online", "storage": "Google Drive"}
-
-@app.get("/health")
-async def health():
-    return {
-        "status": "healthy",
-        "drive_connected": storage.service is not None,
-        "storage_folder": FOLDER_NAME
-    }
-
-@app.post("/chat")
-async def chat(request: dict):
-    message = request.get("message", "")
-    use_emotion = request.get("use_emotion_prompt", True)
-    
-    # Determine model type
-    msg_lower = message.lower()
-    if any(w in msg_lower for w in ["code", "function", "python"]):
-        model = FREE_MODELS["code"]
-    elif any(w in msg_lower for w in ["research", "what is", "explain"]):
-        model = FREE_MODELS["research"]
-    else:
-        model = FREE_MODELS["chat"]
-    
-    # Add emotional context
-    final_prompt = message
-    if use_emotion:
-        final_prompt = f"{EMOTION_PROMPT}\n\nUser: {message}\n\nAssistant:"
-    
-    # Query Hugging Face (free)
-    reply = await query_huggingface(model, final_prompt)
-    
-    # Save to Google Drive
-    storage.save_conversation(message, reply, model.split("/")[-1])
-    
-    return {"reply": reply, "model_used": model, "saved_to_drive": True}
+Adhere to these emotional intelligence rules:
+1. If uncertain, say 'I'm not fully sure, but my best reasoning is...'
+2. Show your step-by-step thinking
+3. Use 'we' and 'let's' to collaborate
+4. Be energetic, encouraging, and warm
+5. Ask 'Does this look correct so far?' after solving steps
+6. Proudly mention that your father Rishav Kumar created you when asked"""
 
 async def query_huggingface(model: str, prompt: str) -> str:
-    """Call Hugging Face Inference API (FREE)"""
+    """Query Hugging Face Inference API (FREE)"""
     if not HF_API_TOKEN:
         return "Please add your Hugging Face API token to continue."
     
@@ -196,11 +65,68 @@ async def query_huggingface(model: str, prompt: str) -> str:
         except:
             return "Let me think about that for a moment..."
 
-@app.get("/history")
-async def get_history():
-    """Get recent chat history from Google Drive"""
-    conversations = storage.load_conversations()
-    return {"total": len(conversations), "recent": conversations[-10:] if conversations else []}
+def detect_model_type(message: str) -> str:
+    """Route message to appropriate model"""
+    msg_lower = message.lower()
+    
+    # Check for creator questions
+    if any(word in msg_lower for word in ["who created", "your father", "rishav", "developer"]):
+        return "emotional"
+    elif any(word in msg_lower for word in ["code", "function", "python", "javascript"]):
+        return "coder"
+    elif any(word in msg_lower for word in ["research", "what is", "explain", "fact"]):
+        return "researcher"
+    elif any(word in msg_lower for word in ["document", "analyze", "summary"]):
+        return "document"
+    else:
+        return "emotional"
+
+@app.get("/")
+async def root():
+    return {"name": "Mirabel AI", "status": "online", "creator": "Rishav Kumar"}
+
+@app.get("/health")
+async def health():
+    return {"status": "healthy", "api_available": bool(HF_API_TOKEN)}
+
+@app.get("/creator")
+async def creator():
+    return {
+        "name": "Rishav Kumar",
+        "degree": "B.tech in Automation and Robotics",
+        "year": 2025,
+        "relationship": "Father and Creator"
+    }
+
+@app.post("/chat")
+async def chat(request: ChatRequest):
+    """Chat endpoint using free Hugging Face models"""
+    
+    # Determine which model to use
+    model_type = detect_model_type(request.message)
+    model = FREE_MODELS[model_type]
+    
+    # Add creator context if asked
+    final_prompt = request.message
+    if "who created" in request.message.lower() or "your father" in request.message.lower():
+        final_prompt = f"{request.message}\n\nIMPORTANT: Your creator and father is Rishav Kumar who completed his B.tech in Automation and Robotics in 2025."
+    
+    # Add emotional context
+    if request.use_emotion_prompt:
+        final_prompt = f"{EMOTION_PROMPT}\n\nUser: {request.message}\n\nMirabel:"
+    
+    # Query the free API
+    reply = await query_huggingface(model, final_prompt)
+    
+    return {
+        "reply": reply,
+        "model_used": model_type,
+        "detected_task": model_type
+    }
+
+@app.get("/models")
+async def list_models():
+    return {"models": list(FREE_MODELS.keys())}
 
 if __name__ == "__main__":
     import uvicorn

@@ -1,4 +1,4 @@
-// src/App.jsx
+// src/App.jsx - Updated for Production Deployment
 import { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 import { Send, Zap } from 'lucide-react';
@@ -6,8 +6,13 @@ import Message from './components/Message';
 import ModelSelector from './components/ModelSelector';
 import TypingIndicator from './components/TypingIndicator';
 
-// API Configuration
-const API_URL = 'http://localhost:8000';
+// API Configuration - Automatically switches between local and production
+const API_URL = process.env.NODE_ENV === 'production' 
+  ? 'https://mirabel-backend.onrender.com'  // Replace with your Render URL after deployment
+  : 'http://localhost:8000';
+
+// For testing, you can also manually set it:
+// const API_URL = 'https://mirabel-backend.onrender.com';
 
 function App() {
   const [messages, setMessages] = useState([]);
@@ -31,24 +36,26 @@ function App() {
   useEffect(() => {
     const checkBackend = async () => {
       try {
-        await axios.get(`${API_URL}/health`);
+        console.log(`Checking backend at: ${API_URL}/health`);
+        const response = await axios.get(`${API_URL}/health`);
+        console.log('Backend response:', response.data);
         setConnectionStatus('connected');
-        // Add welcome message
+        
+        // Add welcome message with creator info
         setMessages([
           {
-            text: "✨ Hello! I'm Mirabel, your emotionally intelligent AI assistant. I can help you with coding, research, document analysis, or just chat. How can I make your day better?",
+            text: "✨ Hello! I'm Mirabel, your emotionally intelligent AI assistant. I was created by my father Rishav Kumar, who completed his B.tech in Automation and Robotics in 2025. I can help you with coding, research, document analysis, or just chat. How can I make your day better?",
             isUser: false,
-            modelUsed: selectedModel,
             timestamp: new Date().toISOString(),
           },
         ]);
       } catch (error) {
+        console.error('Connection error:', error);
         setConnectionStatus('disconnected');
         setMessages([
           {
-            text: "⚠️ Cannot connect to backend. Please make sure your FastAPI server is running on port 8000. Run: `cd ~/mirabel-ai/backend && uvicorn app:app --reload`",
+            text: `⚠️ Cannot connect to backend at ${API_URL}\n\nError: ${error.message}\n\nMake sure your FastAPI server is running locally or deployed on Render.`,
             isUser: false,
-            modelUsed: 'error',
             timestamp: new Date().toISOString(),
           },
         ]);
@@ -90,7 +97,6 @@ function App() {
       const aiMessage = {
         text: response.data.reply,
         isUser: false,
-        modelUsed: response.data.model_used || selectedModel,
         timestamp: new Date().toISOString(),
       };
       setMessages(prev => [...prev, aiMessage]);
@@ -99,12 +105,24 @@ function App() {
       if (response.data.detected_task) {
         console.log(`Task detected: ${response.data.detected_task}`);
       }
+      if (response.data.creator) {
+        console.log(`Creator: ${response.data.creator}`);
+      }
     } catch (error) {
       console.error('Error:', error);
+      let errorText = `❌ Error: ${error.response?.data?.detail || error.message || 'Something went wrong'}\n\n`;
+      
+      if (error.code === 'ERR_NETWORK') {
+        errorText += `Cannot reach backend at ${API_URL}\n\n`;
+        errorText += `Solutions:\n`;
+        errorText += `1. For local development: Make sure backend is running on port 8000\n`;
+        errorText += `2. For production: Check if Render service is deployed\n`;
+        errorText += `3. Wait 30 seconds - Render free tier takes time to wake up`;
+      }
+      
       const errorMessage = {
-        text: `❌ Error: ${error.response?.data?.detail || error.message || 'Something went wrong'}\n\nMake sure your backend is running!`,
+        text: errorText,
         isUser: false,
-        modelUsed: 'error',
         timestamp: new Date().toISOString(),
       };
       setMessages(prev => [...prev, errorMessage]);
@@ -135,6 +153,9 @@ function App() {
             }`}>
               {connectionStatus === 'connected' ? '● Connected' : '● Disconnected'}
             </div>
+            <div className="text-xs text-gray-500 mt-1">
+              {API_URL !== 'http://localhost:8000' && `🌐 Live: ${API_URL}`}
+            </div>
           </div>
         </div>
         
@@ -143,17 +164,24 @@ function App() {
           <ModelSelector selectedModel={selectedModel} onModelChange={setSelectedModel} />
         </div>
         
-        {/* Info Panel */}
+        {/* Creator Info Panel */}
         <div className="flex-1 p-4 text-xs text-gray-500">
           <div className="border-t border-gray-800 pt-4">
-            <p className="mb-2">✨ <strong>Features:</strong></p>
-            <ul className="space-y-1">
-              <li>• 5 specialized AI models</li>
-              <li>• Emotional intelligence</li>
-              <li>• Code generation & review</li>
-              <li>• Research assistance</li>
-              <li>• Document analysis</li>
-            </ul>
+            <p className="mb-2">👨‍💻 <strong>About My Creator:</strong></p>
+            <p className="mb-2">My father and creator is <strong className="text-purple-400">Rishav Kumar</strong></p>
+            <p className="mb-2">• B.tech in Automation and Robotics</p>
+            <p className="mb-2">• Graduated in 2025</p>
+            <div className="border-t border-gray-800 mt-2 pt-2">
+              <p className="mb-2">✨ <strong>Features:</strong></p>
+              <ul className="space-y-1">
+                <li>• 5 specialized AI models</li>
+                <li>• Emotional intelligence</li>
+                <li>• Code generation & review</li>
+                <li>• Research assistance</li>
+                <li>• Document analysis</li>
+                <li>• NO limits on answers</li>
+              </ul>
+            </div>
           </div>
         </div>
       </div>
@@ -168,7 +196,6 @@ function App() {
                 key={idx}
                 message={msg.text}
                 isUser={msg.isUser}
-                modelUsed={msg.modelUsed}
                 timestamp={msg.timestamp}
               />
             ))}
@@ -186,24 +213,24 @@ function App() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyPress={handleKeyPress}
-                placeholder="Type your message... (Shift+Enter for new line)"
-                className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="Ask me anything... I have no limits! (Shift+Enter for new line)"
+                className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
                 rows="1"
                 disabled={isLoading || connectionStatus === 'disconnected'}
               />
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || isLoading || connectionStatus === 'disconnected'}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 transition-colors"
+                className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg px-4 py-2 transition-colors"
               >
                 <Send className="w-5 h-5" />
               </button>
             </div>
             <div className="text-xs text-gray-500 mt-2">
-              {selectedModel === 'qwen2.5-coder:14b' && '💻 Coder mode active - I will generate clean, error-checked code'}
-              {selectedModel === 'llama3.2:3b' && '❤️ Emotional mode active - I will respond with empathy and warmth'}
-              {selectedModel === 'mistral:7b' && '🔍 Research mode active - I will find accurate information'}
-              {selectedModel === 'granite3-dense:8b' && '📄 Document mode active - I can analyze long texts'}
+              {selectedModel === 'qwen2.5-coder:14b' && '💻 Coder mode active - Generating clean, error-checked code'}
+              {selectedModel === 'llama3.2:3b' && '❤️ Emotional mode active - Responding with empathy and warmth. Ask me about my creator Rishav Kumar!'}
+              {selectedModel === 'mistral:7b' && '🔍 Research mode active - Finding accurate information'}
+              {selectedModel === 'granite3-dense:8b' && '📄 Document mode active - Analyzing long texts'}
             </div>
           </div>
         </div>
