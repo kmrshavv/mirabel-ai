@@ -1,3 +1,11 @@
+
+
+https://github.com/user-attachments/assets/86050903-4900-46f3-870a-334ad11b73fe
+
+
+
+https://github.com/user-attachments/assets/d033e179-1c06-4966-b6ae-7434a16ce2d0
+
 🚀 I Built Mirabel – An AI That Actually Remembers You
 
 After weeks of building, iterating, and debugging, I'm proud to unveil Mirabel AI — a full-stack conversational AI with emotional intelligence, long-term memory, and multi-model smarts.
