@@ -1,3 +1,5 @@
+/* index.css - Complete styles for Mirabel AI */
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
@@ -5,27 +7,56 @@
 @layer base {
   body {
     @apply bg-gray-900 text-white;
+    font-feature-settings: "rlig" 1, "calt" 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+  
+  /* Better tap highlights on mobile */
+  button,
+  [role="button"],
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Prevent zoom on input focus for iOS */
+  input, 
+  textarea {
+    font-size: 16px;
+  }
+  
+  /* Improve scrolling on mobile */
+  * {
+    -webkit-overflow-scrolling: touch;
   }
 }
 
-/* Custom scrollbar */
+/* Custom Scrollbar - Webkit */
 ::-webkit-scrollbar {
-  width: 8px;
+  width: 6px;
+  height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  @apply bg-gray-800;
+  @apply bg-gray-800/50 rounded-full;
 }
 
 ::-webkit-scrollbar-thumb {
   @apply bg-gray-600 rounded-full;
+  transition: background 0.2s ease;
 }
 
 ::-webkit-scrollbar-thumb:hover {
   @apply bg-gray-500;
 }
 
-/* Smooth animations */
+/* Firefox scrollbar */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #4b5563 #1f2937;
+}
+
+/* Animations */
 @keyframes fadeIn {
   from {
     opacity: 0;
@@ -37,6 +68,356 @@
   }
 }
 
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+}
+
+@keyframes bounce {
+  0%, 100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-4px);
+  }
+}
+
+/* Animation Classes */
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+.animate-slideInLeft {
+  animation: slideInLeft 0.3s ease-out forwards;
+}
+
+.animate-slideInRight {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+.animate-pulse-slow {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.animate-spin-slow {
+  animation: spin 1s linear infinite;
+}
+
+.animate-shimmer {
+  animation: shimmer 2s linear infinite;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 1000px 100%;
+}
+
+.animate-bounce-custom {
+  animation: bounce 0.6s ease-in-out infinite;
+}
+
+/* Message animations */
 .message-enter {
   animation: fadeIn 0.3s ease-out;
+}
+
+.message-user {
+  animation: slideInRight 0.3s ease-out;
+}
+
+.message-bot {
+  animation: slideInLeft 0.3s ease-out;
+}
+
+/* Typing indicator animation */
+.typing-dot {
+  animation: bounce 0.6s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(1) { animation-delay: 0ms; }
+.typing-dot:nth-child(2) { animation-delay: 150ms; }
+.typing-dot:nth-child(3) { animation-delay: 300ms; }
+
+/* Skeleton loading animation */
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    #1f2937 25%,
+    #374151 50%,
+    #1f2937 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+}
+
+/* Mobile-specific optimizations */
+@media (max-width: 640px) {
+  /* Reduce scrollbar width on mobile */
+  ::-webkit-scrollbar {
+    width: 3px;
+    height: 3px;
+  }
+  
+  /* Faster animations on mobile for better performance */
+  .animate-fadeIn,
+  .animate-fadeInUp,
+  .animate-slideInLeft,
+  .animate-slideInRight,
+  .message-enter,
+  .message-user,
+  .message-bot {
+    animation-duration: 0.2s;
+  }
+  
+  /* Improve touch targets */
+  button, 
+  [role="button"],
+  .clickable {
+    min-height: 44px;
+  }
+  
+  /* Better text readability */
+  body {
+    font-size: 14px;
+  }
+}
+
+/* Tablet optimizations */
+@media (min-width: 641px) and (max-width: 1024px) {
+  button, 
+  [role="button"],
+  .clickable {
+    min-height: 40px;
+  }
+}
+
+/* Desktop optimizations */
+@media (min-width: 1025px) {
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+}
+
+/* Reduce motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Focus styles for accessibility */
+*:focus-visible {
+  outline: 2px solid #a855f7;
+  outline-offset: 2px;
+  border-radius: 4px;
+}
+
+/* Loading state */
+.loading-pulse {
+  @apply relative overflow-hidden;
+}
+
+.loading-pulse::after {
+  content: '';
+  @apply absolute inset-0;
+  animation: shimmer 1.5s ease-in-out infinite;
+  background: linear-gradient(
+    90deg,
+    transparent,
+    rgba(255, 255, 255, 0.05),
+    transparent
+  );
+  transform: translateX(-100%);
+}
+
+/* Glass morphism effect */
+.glass {
+  @apply bg-white/10 backdrop-blur-md;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.glass-dark {
+  @apply bg-black/20 backdrop-blur-md;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+/* Gradient text */
+.gradient-text {
+  @apply bg-gradient-to-r from-purple-400 to-pink-400 bg-clip-text text-transparent;
+}
+
+/* Custom selection color */
+::selection {
+  @apply bg-purple-500/30 text-white;
+}
+
+::-moz-selection {
+  @apply bg-purple-500/30 text-white;
+}
+
+/* Smooth transitions */
+.transition-smooth {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Hide scrollbar when not needed */
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+/* Message bubble hover effect */
+.message-bubble {
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.message-bubble:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Status indicator */
+.status-indicator {
+  @apply inline-block w-2 h-2 rounded-full;
+  transition: all 0.3s ease;
+}
+
+.status-indicator.connected {
+  @apply bg-green-400;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+}
+
+.status-indicator.disconnected {
+  @apply bg-red-400;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+}
+
+.status-indicator.checking {
+  @apply bg-yellow-400;
+  animation: pulse 1s ease-in-out infinite;
+}
+
+/* Code block styling */
+pre {
+  @apply rounded-lg overflow-x-auto;
+}
+
+code {
+  @apply text-sm font-mono;
+}
+
+/* Inline code */
+:not(pre) > code {
+  @apply bg-gray-800 px-1.5 py-0.5 rounded text-sm;
+}
+
+/* Table styling for markdown */
+table {
+  @apply w-full border-collapse my-2;
+}
+
+th, td {
+  @apply border border-gray-700 px-3 py-2 text-left;
+}
+
+th {
+  @apply bg-gray-800 font-semibold;
+}
+
+/* Blockquote styling */
+blockquote {
+  @apply border-l-4 border-purple-500 pl-4 my-2 text-gray-300 italic;
+}
+
+/* Link styling */
+a {
+  @apply text-purple-400 hover:text-purple-300 underline transition-colors;
+}
+
+/* Button hover effects */
+.btn-hover-effect {
+  @apply transition-all duration-200;
+}
+
+.btn-hover-effect:hover {
+  @apply transform scale-105;
+}
+
+.btn-hover-effect:active {
+  @apply transform scale-95;
+}
+
+/* Input focus effects */
+.input-focus-effect {
+  @apply transition-all duration-200;
+}
+
+.input-focus-effect:focus {
+  @apply ring-2 ring-purple-500 ring-opacity-50;
 }
